@@ -31,6 +31,21 @@
       retry = setTimeout(() => { retry = null; connect(); }, delay);
     }
   }
+  async function addCandidate(s, pc, candidate) {
+    if (!current(s) || s.pc !== pc) return;
+    const normalized = {...candidate};
+    if (normalized.candidate) {
+      let line = normalized.candidate.trim();
+      if (line.startsWith('a=candidate:')) line = line.slice(2);
+      if (!line.startsWith('candidate:')) line = 'candidate:' + line;
+      normalized.candidate = line;
+    }
+    try { await pc.addIceCandidate(normalized); }
+    catch (error) {
+      // One unusable interface/candidate must not tear down the other viable paths.
+      if (current(s) && s.pc === pc) report(s, 'ice-candidate', `${error.name}: ${error.message}`, 'error');
+    }
+  }
   async function offer(s, message) {
     clearPeer(s); s.sender = message.from;
     report(s, 'offer', '映像形式の交渉を開始');
@@ -60,7 +75,7 @@
     s.handshake = setTimeout(() => { if (current(s) && s.pc === pc && pc.connectionState !== 'connected') end(s, `接続待ちが30秒を超えました（ICE: ${pc.iceConnectionState}）。回線・TURN設定を確認してください`); }, 30000);
     await pc.setRemoteDescription({type:'offer',sdp:message.sdp});
     if (!current(s) || s.pc !== pc) return;
-    for (const candidate of s.candidates) await pc.addIceCandidate(candidate); s.candidates = [];
+    for (const candidate of s.candidates) await addCandidate(s, pc, candidate); s.candidates = [];
     const answer = await pc.createAnswer();
     if (!current(s) || s.pc !== pc) return;
     await pc.setLocalDescription(answer);
@@ -71,7 +86,7 @@
       if (!current(s) || s.pc !== pc || pc.connectionState !== 'connected') return;
       try {
         const stats = await pc.getStats(); let frames = 0;
-        stats.forEach(r => { if (r.type === 'inbound-rtp' && (r.kind || r.mediaType) === 'video') frames += r.framesDecoded || 0; });
+        stats.forEach(r => { if (r.type !== 'inbound-rtp') return; if ((r.kind || r.mediaType) === 'video') frames += r.framesDecoded || 0; else if ((r.kind || r.mediaType) === 'audio') { debug.audioBytes = r.bytesReceived || 0; debug.audioSamples = r.totalSamplesReceived || r.jitterBufferEmittedCount || 0; } });
         debug.frames = frames;
         stalled = frames === lastFrames ? stalled + 1 : 0; lastFrames = frames;
         if (stalled >= 5) end(s, '映像フレームを受信できないため再接続します');
@@ -94,7 +109,7 @@
         try { await offer(s, message); }
         catch (error) { if (current(s)) { report(s, 'negotiation', `${error.name}: ${error.message}`, 'error'); end(s, `映像形式の交渉に失敗: ${error.message}`); } }
       } else if (message.type === 'ice' && message.candidate) {
-        if (s.pc?.remoteDescription) await s.pc.addIceCandidate(message.candidate); else s.candidates.push(message.candidate);
+        if (s.pc?.remoteDescription) await addCandidate(s, s.pc, message.candidate); else s.candidates.push(message.candidate);
       } else if (message.type === 'left') { clearPeer(s); status(s, '送信PCが切断しました'); s.sender = null; }
     }).catch(error => { if (current(s)) end(s, `${error.name}: ${error.message}`); }); };
     s.ws.onclose = e => { if (current(s)) end(s, `接続受付との通信が終了（${e.code}）${e.reason ? ': ' + e.reason : ''}`); };

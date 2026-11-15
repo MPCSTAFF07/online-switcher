@@ -99,7 +99,7 @@ public sealed class Link : IAsyncDisposable
         pc.onicecandidate += c =>
         {
             if (c == null) return;
-            var obj = new JsonObject { ["type"] = "ice", ["to"] = id, ["candidate"] = new JsonObject { ["candidate"] = c.candidate, ["sdpMid"] = c.sdpMid, ["sdpMLineIndex"] = c.sdpMLineIndex } };
+            var obj = new JsonObject { ["type"] = "ice", ["to"] = id, ["candidate"] = IceSignaling.ForBrowser(c) };
             lock (candidates) { if (!offered) { candidates.Add(obj); return; } }
             _ = SafeSend(obj);
         };

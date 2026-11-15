@@ -6,6 +6,11 @@ using Ocs.Core;
 if (args.Length == 0)
 {
     await StudioControlTests.Run();
+    var ice = new SIPSorcery.Net.RTCIceCandidate(SIPSorcery.Net.RTCIceProtocol.udp, IPAddress.Loopback, 54321, SIPSorcery.Net.RTCIceCandidateType.host);
+    var browserIce = IceSignaling.ForBrowser(ice);
+    if (!((string?)browserIce["candidate"])!.StartsWith("candidate:") || (string?)browserIce["sdpMid"] != "0" || (int?)browserIce["sdpMLineIndex"] != 0)
+        throw new Exception("ICE candidate must use the browser's RTCIceCandidateInit representation");
+    Console.WriteLine("PASS native ICE candidates include browser prefix and media identification");
     void Check(bool ok, string name) { if (!ok) throw new Exception(name); Console.WriteLine("PASS " + name); }
     Check(Rtp.Parse([0x80,0xe0,0x12,0x34,0,0,0,9,0,0,0,1,0x65,2]) is { Timestamp:9, Sequence:0x1234, Marker:1, Data.Length:2 }, "RTP header / marker / payload");
     Check(Rtp.Parse([0x90,96,0,1,0,0,0,2,0,0,0,1,0xbe,0xde,0,1,0,0,0,0,0x65]) is { Data.Length:1 }, "RTP extension");

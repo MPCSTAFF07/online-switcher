@@ -10,7 +10,7 @@ const repo = path.resolve(__dirname, '../..');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'ocs-media-test-'));
 const children = [];
 const logs = [];
-let browser;
+let browser, page;
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 function child(exe, args, options = {}) {
   const process = spawn(exe, args, { cwd: repo, ...options, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -37,7 +37,7 @@ function child(exe, args, options = {}) {
     const code = Buffer.from(JSON.stringify({ url: base, slot: 1, token: slots[0].SendToken })).toString('base64url');
     child('dotnet', [path.join(repo, 'Tests/bin/Release/net8.0/Tests.dll'), code]);
     browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
-    const page = await browser.newPage();
+    page = await browser.newPage();
     page.on('console', message => { logs.push(message.text()); console.log('BROWSER', message.type(), message.text()); });
     page.on('pageerror', error => { logs.push(error.message); console.log('BROWSER ERROR', error.message); });
     await page.goto(`${base}/view.html?slot=1#${slots[0].ViewToken}`);
@@ -55,6 +55,8 @@ function child(exe, args, options = {}) {
     console.log('MEDIA RESULT', JSON.stringify(result));
     assert.ok(result.frames > first + 60, 'video continues rendering rather than reconnecting');
     assert.equal(result.audio, 1, 'Opus audio track is present');
+    assert.ok(result.debug.audioBytes > 0 && result.debug.audioSamples > 0, 'Opus audio packets and decoded samples arrive');
+    assert.ok(!logs.some(line => line.includes('Error processing ICE candidate')), 'native ICE candidates are accepted by Chrome');
     assert.equal(result.debug.connection, 'connected');
     console.log('PASS native H264/Opus offer-answer, ICE, decoded video, audio track, and stable playback');
     // Exercise receiver recreation against the same continuously running sender.
@@ -63,6 +65,7 @@ function child(exe, args, options = {}) {
     console.log('PASS receiver reload reconnects to native sender');
   } catch (error) {
     console.error('MEDIA TEST FAILED', error);
+    if (page) try { console.error('RECEIVER STATE', await page.evaluate(() => ({debug:window.ocsReceiverStatus,width:document.querySelector('video').videoWidth,frames:document.querySelector('video').getVideoPlaybackQuality()}))); } catch {}
     console.error(logs.slice(-35).join('\n'));
     process.exitCode = 1;
   } finally {
