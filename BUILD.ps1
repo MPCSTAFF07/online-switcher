@@ -60,6 +60,7 @@ New-Item -ItemType Directory -Path "$output\sender\tools" -Force | Out-Null
 Set-Content -Path "$output\sender\tools\README.txt" -Encoding UTF8 -Value 'Run SETUP-SENDER.bat to install FFmpeg, or place ffmpeg.exe in this folder. FFmpeg is not bundled.'
 
 # Retain NuGet license files alongside the runtime's own licenses/notices.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 $packageRoot = $env:NUGET_PACKAGES
 if (-not $packageRoot) { $packageRoot = Join-Path $env:USERPROFILE '.nuget\packages' }
 $deps = Get-Content "$output\sender\OCS-Sender.deps.json" -Raw | ConvertFrom-Json

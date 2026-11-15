@@ -25,7 +25,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Build and test Windows applications
-        shell: pwsh
+        shell: powershell
         run: ./BUILD.ps1
       - name: Upload ready-to-run Windows package
         uses: actions/upload-artifact@v4
