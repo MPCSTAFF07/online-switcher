@@ -5,6 +5,7 @@ using Ocs.Core;
 
 if (args.Length == 0)
 {
+    await StudioControlTests.Run();
     void Check(bool ok, string name) { if (!ok) throw new Exception(name); Console.WriteLine("PASS " + name); }
     Check(Rtp.Parse([0x80,0xe0,0x12,0x34,0,0,0,9,0,0,0,1,0x65,2]) is { Timestamp:9, Sequence:0x1234, Marker:1, Data.Length:2 }, "RTP header / marker / payload");
     Check(Rtp.Parse([0x90,96,0,1,0,0,0,2,0,0,0,1,0xbe,0xde,0,1,0,0,0,0,0x65]) is { Data.Length:1 }, "RTP extension");

@@ -160,8 +160,8 @@ public sealed class Obs : IAsyncDisposable
                 var result = await completion.Task.WaitAsync(timeout.Token);
                 if ((bool?)result["requestStatus"]?["result"] != true)
                 {
-                    string reason = $"OBS {type} 失敗（{(int?)result["requestStatus"]?["code"]}）: {(string?)result["requestStatus"]?["comment"] ?? "詳細なし"}";
-                    log(reason); throw new Exception(reason);
+                    var failure = new ObsRequestException(type, (int?)result["requestStatus"]?["code"] ?? 0, (string?)result["requestStatus"]?["comment"]);
+                    log(failure.Message); throw failure;
                 }
                 return (result["responseData"] as JsonObject)?.DeepClone().AsObject() ?? new();
             }

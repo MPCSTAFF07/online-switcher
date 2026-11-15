@@ -9,6 +9,7 @@ builder.WebHost.UseUrls(Environment.GetEnvironmentVariable("OCS_URLS") ?? "http:
 builder.Logging.ClearProviders(); builder.Logging.AddSimpleConsole(); builder.Logging.SetMinimumLevel(LogLevel.Warning);
 var app = builder.Build();
 var config = AppConfig.Load(); var broker = new Broker(config); await using var obs = new Obs();
+var studio = new ObsStudioControl(obs.Call);
 var sessions = new ConcurrentDictionary<string, DateTime>();
 var attempts = new ConcurrentDictionary<string, (DateTime until, int count)>();
 Console.WriteLine("\nOCS LINK / Control: http://localhost:17640\n初回パスワードは同じフォルダーの config.json → AdminPassword を確認してください。\n");
@@ -68,7 +69,7 @@ app.MapPost("/api/obs/connect", async (HttpContext context) =>
     string password = (string?)request["password"] ?? "";
     if (string.IsNullOrEmpty(password)) password = config.ObsPassword;
     await obs.Connect(url, password);
-    await obs.Call("SetStudioModeEnabled", new() { ["studioModeEnabled"] = true });
+    await studio.EnsureEnabled();
     var scenes = await obs.Call("GetSceneList");
     if (!obs.Connected) throw new Exception(obs.Error.Length > 0 ? obs.Error : "確認中にOBS接続が切れました");
     config.ObsUrl = url; config.ObsPassword = password; config.Save();
@@ -91,6 +92,7 @@ app.MapPost("/api/obs/action", async (HttpContext c) =>
     string action = (string?)b["action"] ?? "";
     if (action is not ("SetCurrentPreviewScene" or "SetCurrentProgramScene" or "TriggerStudioModeTransition" or "SetStudioModeEnabled" or "SetInputMute" or "SetInputVolume" or "GetInputMute" or "GetInputVolume" or "GetStudioModeEnabled" or "GetSceneItemList" or "SetSceneItemEnabled" or "GetStreamStatus" or "GetRecordStatus" or "StartStream" or "StopStream" or "StartRecord" or "StopRecord" or "SetCurrentSceneTransition" or "SetCurrentSceneTransitionDuration" or "GetSceneTransitionList")) throw new Exception("未対応の操作です");
     if (action == "SetInputVolume") { double value = (double?)data["inputVolumeMul"] ?? 0; if (value is < 0 or > 2) throw new Exception("音量範囲外です"); }
+    if (action is "SetCurrentPreviewScene" or "TriggerStudioModeTransition") return Results.Json(await studio.Execute(action, data));
     return Results.Json(await obs.Call(action, data));
 });
 app.MapPost("/api/obs/setup", async () =>
