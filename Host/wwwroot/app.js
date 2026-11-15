@@ -57,13 +57,14 @@ $('#connect').onclick=guarded(async()=>{
  finally {connectingObs=false;b.disabled=false;}
 });
 $('#refresh').onclick=guarded(async()=>{sceneKey=inputKey=sourceKey='';await refresh();await images();});
+$('#refresh-receivers').onclick=guarded(async()=>{const b=$('#refresh-receivers');b.disabled=true;try{const result=await api('obs/refresh-receivers',{});notify(result.refreshed?result.refreshed+'枠の受信ページを更新しました':'更新対象がありません。先に受信用シーンを追加してください');}finally{b.disabled=false;}});
 $('#setup').onclick=guarded(async()=>{const b=$('#setup');b.disabled=true;try{await api('obs/setup',{});await refresh();notify('受信用シーンを追加しました');}finally{b.disabled=false;}});
 function renderSlots(slots){const root=$('#slot-list');root.replaceChildren();for(const s of config.slots){const live=slots.find(x=>x.id===s.id);const row=document.createElement('div');row.className='row';const main=document.createElement('div');main.className='row-main';const title=document.createElement('strong');const dot=document.createElement('i');dot.className='dot'+(live?.online?' online':'');title.append(dot,document.createTextNode(s.name));const small=document.createElement('small');small.textContent=live?.online?`接続済み / 受信 ${live.viewers}`:'オフライン';main.append(title,small);const b=document.createElement('button');b.textContent='接続コード';b.onclick=()=>{$('#code-title').textContent=s.name+' / 接続コード';$('#send-code').value=s.code;$('#code-dialog').showModal();};row.append(main,b);root.append(row);}}
 $('#close-dialog').onclick=()=>$('#code-dialog').close();
 $('#copy-code').onclick=guarded(async()=>{try{await navigator.clipboard.writeText($('#send-code').value);notify('コピーしました');}catch{$('#send-code').select();document.execCommand('copy');notify('コードを選択しました。コピーできない場合は手動でコピーしてください');}});
 async function refresh(){if(busyState||connectingObs||$('#app').hidden)return;busyState=true;const revision=connectionRevision;try{
  const result=await api('state');if(revision!==connectionRevision||connectingObs)return;state=result;showConnection(state.connected,state.error||'',state.endpoint||'');
- for(const id of ['take','cut','setup','stream-toggle','record-toggle','apply-transition'])$('#'+id).disabled=!connected;
+ for(const id of ['take','cut','setup','refresh-receivers','stream-toggle','record-toggle','apply-transition'])$('#'+id).disabled=!connected;
  renderSlots(state.slots);
  if(!connected){$$('.ready').forEach(i=>i.classList.remove('ready'));return;}
  const sceneData=state.scenes||{};program=sceneData.currentProgramSceneName||'';preview=sceneData.currentPreviewSceneName||preview;

@@ -54,7 +54,12 @@ public sealed class Link : IAsyncDisposable
                     {
                         var msg = await Read(ws, stop.Token); string type = (string?)msg["type"] ?? "";
                         if (type == "viewer") await AddPeer((string)msg["peer"]!, ice, settings.Audio != "none");
-                        else if (type == "left") RemovePeer((string)msg["peer"]!);
+                        else if (type == "left") RemovePeer((string)msg["peer"]!, "受信ページが接続を閉じました");
+                        else if (type == "diagnostic")
+                        {
+                            string fromId = (string?)msg["from"] ?? "unknown";
+                            Log?.Invoke($"受信側 {fromId[..Math.Min(6, fromId.Length)]} / {(string?)msg["phase"]}: {(string?)msg["message"]}");
+                        }
                         else if (msg["from"] is JsonValue from && peers.TryGetValue((string)from!, out var pc))
                         {
                             if (type == "answer")
@@ -62,6 +67,7 @@ public sealed class Link : IAsyncDisposable
                                 var answer = new RTCSessionDescriptionInit { type = RTCSdpType.answer, sdp = (string)msg["sdp"]! };
                                 var result = pc.setRemoteDescription(answer);
                                 if (result != SetDescriptionResultEnum.OK) throw new Exception($"WebRTC応答: {result}");
+                                Log?.Invoke($"受信先 {(string)from!}: 映像形式の応答を受信（OK）");
                             }
                             else if (type == "ice" && msg["candidate"] is JsonObject candidate)
                             {
@@ -97,8 +103,10 @@ public sealed class Link : IAsyncDisposable
             lock (candidates) { if (!offered) { candidates.Add(obj); return; } }
             _ = SafeSend(obj);
         };
+        pc.oniceconnectionstatechange += s => Log?.Invoke($"受信先 {id[..6]} / ICE: {s}");
         pc.onconnectionstatechange += s => { Status?.Invoke(s == RTCPeerConnectionState.connected ? "映像送信中" : $"WebRTC: {s}"); Log?.Invoke($"受信先 {id[..6]}: {s}"); };
         var offer = pc.createOffer(null); await pc.setLocalDescription(offer);
+        Log?.Invoke($"受信先 {id[..6]}: 映像形式のオファーを送信");
         await Send(new() { ["type"] = "offer", ["to"] = id, ["sdp"] = offer.sdp });
         JsonObject[] queued;
         lock (candidates) { offered = true; queued = candidates.ToArray(); candidates.Clear(); }
@@ -117,7 +125,7 @@ public sealed class Link : IAsyncDisposable
             catch (Exception e) { Log?.Invoke("送信: " + e.Message); }
         }
     }
-    void RemovePeer(string id) { if (peers.TryRemove(id, out var p)) p.Close("receiver left"); }
+    void RemovePeer(string id, string reason = "接続の終了・再作成") { if (peers.TryRemove(id, out var p)) { Log?.Invoke($"受信先 {id[..Math.Min(6, id.Length)]} を終了: {reason}"); p.Close(reason); } }
     async Task SafeSend(JsonObject obj) { try { await Send(obj); } catch (Exception e) { if (!stop.IsCancellationRequested) Log?.Invoke(e.Message); } }
     async Task Send(JsonObject obj)
     {
@@ -128,7 +136,7 @@ public sealed class Link : IAsyncDisposable
     static async Task<JsonObject> Read(ClientWebSocket ws, CancellationToken ct)
     {
         byte[] buffer = new byte[16384]; using var ms = new MemoryStream(); WebSocketReceiveResult r;
-        do { r = await ws.ReceiveAsync(buffer, ct); if (r.MessageType == WebSocketMessageType.Close) throw new Exception("接続終了"); ms.Write(buffer, 0, r.Count); if (ms.Length > 131072) throw new Exception("応答サイズ上限"); } while (!r.EndOfMessage);
+        do { r = await ws.ReceiveAsync(buffer, ct); if (r.MessageType == WebSocketMessageType.Close) throw new Exception($"接続受付が通信を終了（{r.CloseStatus}）: {r.CloseStatusDescription}"); ms.Write(buffer, 0, r.Count); if (ms.Length > 131072) throw new Exception("応答サイズ上限"); } while (!r.EndOfMessage);
         return JsonNode.Parse(ms.ToArray())!.AsObject();
     }
     public async ValueTask DisposeAsync()

@@ -53,8 +53,13 @@ public sealed class Broker(AppConfig config)
                 var msg = await Read(ws, CancellationToken.None);
                 string type = (string?)msg["type"] ?? "";
                 if (type == "ping") { await peer.Send(new() { ["type"] = "pong" }); continue; }
-                if (type is not ("offer" or "answer" or "ice")) continue;
-                if ((type == "offer" && role != "sender") || (type == "answer" && role != "viewer")) continue;
+                if (type is not ("offer" or "answer" or "ice" or "diagnostic")) continue;
+                if ((type == "offer" && role != "sender") || ((type is "answer" or "diagnostic") && role != "viewer")) continue;
+                if (type == "diagnostic")
+                {
+                    string message = (string?)msg["message"] ?? "";
+                    msg["message"] = message[..Math.Min(message.Length, 1024)];
+                }
                 string target = (string?)msg["to"] ?? "";
                 if (peers.TryGetValue(target, out var recipient) && recipient.Slot == slot && recipient.Role != role)
                 { msg.Remove("to"); msg["from"] = peer.Id; await recipient.Send(msg); }

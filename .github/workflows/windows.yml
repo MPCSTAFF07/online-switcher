@@ -27,6 +27,18 @@ jobs:
       - name: Build and test Windows applications
         shell: powershell
         run: ./BUILD.ps1
+      - name: Verify running-process and locked-file checks
+        shell: powershell
+        run: ./Tests/BuildOutputGuard.Tests.ps1
+      - name: Install media test dependencies
+        shell: pwsh
+        run: |
+          ./Tests/Media/Install-TestFfmpeg.ps1
+          npm ci --prefix Tests/Media --ignore-scripts --no-fund --no-audit
+          if ($LASTEXITCODE -ne 0) { throw 'Media test dependency installation failed' }
+      - name: Verify native WebRTC video and audio in Chrome
+        shell: pwsh
+        run: node Tests/Media/rtc-smoke.cjs
       - name: Upload ready-to-run Windows package
         uses: actions/upload-artifact@v4
         with:

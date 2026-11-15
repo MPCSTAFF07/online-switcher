@@ -25,6 +25,10 @@ try {
     Write-Host "Output folder: $output"
     Write-Host 'The output is ready only after BUILD COMPLETE is displayed.'
 
+    Set-BuildStage 'Running application check'
+    . (Join-Path $PSScriptRoot 'scripts\BuildOutputGuard.ps1')
+    Assert-BuildOutputAvailable -OutputDirectory $output
+
     function Find-Sdk8 {
         $candidates = @()
         foreach ($root in @($env:ProgramW6432, $env:ProgramFiles)) {
@@ -71,9 +75,11 @@ try {
     & $dotnet run --project Tests/Tests.csproj --configuration Release
     if ($LASTEXITCODE -ne 0) { throw 'RTP tests failed' }
     Set-BuildStage 'Sender publish'
+    Assert-BuildOutputAvailable -OutputDirectory $output
     & $dotnet publish Sender/Sender.csproj -c Release -r win-x64 --self-contained true -o "$output\sender"
     if ($LASTEXITCODE -ne 0) { throw 'Sender build failed' }
     Set-BuildStage 'Host publish'
+    Assert-BuildOutputAvailable -OutputDirectory $output
     & $dotnet publish Host/Host.csproj -c Release -r win-x64 --self-contained true -o "$output\host"
     if ($LASTEXITCODE -ne 0) { throw 'Host build failed' }
 

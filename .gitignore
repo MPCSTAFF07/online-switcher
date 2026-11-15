@@ -20,3 +20,4 @@ artifacts/
 *.suo
 
 BUILD.status.json
+**/node_modules/

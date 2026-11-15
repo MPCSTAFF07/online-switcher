@@ -95,6 +95,23 @@ app.MapPost("/api/obs/action", async (HttpContext c) =>
     if (action is "SetCurrentPreviewScene" or "TriggerStudioModeTransition") return Results.Json(await studio.Execute(action, data));
     return Results.Json(await obs.Call(action, data));
 });
+app.MapPost("/api/obs/refresh-receivers", async () =>
+{
+    var inputs = await obs.Call("GetInputList");
+    var browserNames = (inputs["inputs"] as JsonArray ?? new())
+        .Where(i => (string?)i?["inputKind"] == "browser_source")
+        .Select(i => (string?)i?["inputName"]).ToHashSet();
+    int refreshed = 0; long nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    foreach (var slot in config.Slots)
+    {
+        string input = $"OCS-Receiver-{slot.Id:00}";
+        if (!browserNames.Contains(input)) continue;
+        await obs.Call("SetInputSettings", new() { ["inputName"] = input, ["overlay"] = true,
+            ["inputSettings"] = new JsonObject { ["url"] = $"http://127.0.0.1:17640/view.html?slot={slot.Id}&refresh={nonce}#{slot.ViewToken}" } });
+        refreshed++;
+    }
+    return Results.Ok(new { refreshed });
+});
 app.MapPost("/api/obs/setup", async () =>
 {
     var existing = await obs.Call("GetSceneList");
