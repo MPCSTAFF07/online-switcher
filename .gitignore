@@ -18,3 +18,5 @@ artifacts/
 *.zip
 *.user
 *.suo
+
+BUILD.status.json

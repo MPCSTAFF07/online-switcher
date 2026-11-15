@@ -2,10 +2,14 @@
 
 ## GitHubから使用する場合
 
-このリポジトリはソースコードです。`Code → Download ZIP` だけではexeは含まれません。
+**[完成版のWindows ZIPをダウンロード](https://github.com/MPCSTAFF07/online-switcher/releases/latest/download/OCS-Link-Windows.zip)**
 
-- ビルド済みファイル：上部の **Actions → Windows build → 成功した実行 → Artifacts → OCS-Link-Windows** からダウンロード（GitHubへのログインが必要）。ZIPを展開すると起動用BATとexeが入っています。
-- 自分のWindowsでビルド：.NET 8 SDKを入れて、ルートの `BUILD.bat` を実行。`dist/OCS-Link/sender/`・`dist/OCS-Link/host/` を作成し、`dist/OCS-Link/` 内の `START-HOST.bat` / `START-SENDER.bat` で起動します。
+完成版は展開して `START-HOST.bat` / `START-SENDER.bat` で起動します。SDKやビルド操作は不要です。
+
+`Code → Download ZIP` はソースコードです。こちらにはexeを含めていません。
+
+- 完成版：上記リンク、または **Releases** から入手。ActionsのArtifactsにも同じ内容を保存します。
+- 自分のWindowsでビルド：ルートの `BUILD.bat` を実行。SDKがない場合はWinGetで.NET 8 SDKを導入します。`dist/OCS-Link/sender/`・`dist/OCS-Link/host/` を作成し、`dist/OCS-Link/` 内の `START-HOST.bat` / `START-SENDER.bat` で起動します。
 
 以下はビルド済み配布物向けの説明です。
 
@@ -161,3 +165,14 @@ Hostの初回起動で設定を生成します。配布ZIPには個人用の接�
 - 更新後の画面ファイルが古いキャッシュに残らないように修正。
 
 設定と接続コードは host/config.json に保存されており、更新ZIPにはconfig.jsonを含めていません。
+
+
+## distが作られない・完成しない場合
+
+作成先は `BUILD.bat` と同じフォルダーの `dist/OCS-Link/` です。
+ビルド開始時に出力先を表示し、SDK確認・テスト・送信アプリ作成・配信側作成・出力確認の順に進行状況を表示します。
+`BUILD COMPLETE` が出た時点で完成です。フォルダーだけが存在する場合は、まだビルド中か失敗しています。
+
+途中で止まった場合は、同じフォルダーの `BUILD.log` と `BUILD.status.json` に失敗した段階と理由が残ります。
+ビルドが正常終了したときは、完成したフォルダーを自動で開きます。
+既存の `host/config.json` は削除しません。
