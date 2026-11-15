@@ -1,0 +1,7 @@
+# Caddyを配信PCで動かす例。
+# relay.example.com を自分のドメインへ変更。
+# DNS Aレコード → 配信側グローバルIP、ルーター TCP80/443 → 配信PC。
+# caddy run --config Caddyfile
+relay.example.com {
+    reverse_proxy 127.0.0.1:17640
+}

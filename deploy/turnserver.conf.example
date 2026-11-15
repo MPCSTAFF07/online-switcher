@@ -1,0 +1,14 @@
+# coturnを外部から到達できるマシンに設置する場合の例。
+# ユーザー・パスワード・realmは必ず変更。
+listening-port=3478
+fingerprint
+lt-cred-mech
+realm=turn.example.com
+user=ocs-user:REPLACE_WITH_LONG_RANDOM_PASSWORD
+min-port=49160
+max-port=49200
+no-cli
+no-multicast-peers
+no-loopback-peers
+# NAT内で稼働させる場合は実際のIPを指定し、各ポートを転送する。
+# external-ip=PUBLIC_IP/PRIVATE_IP
